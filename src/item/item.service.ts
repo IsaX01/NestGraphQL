@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Item } from './entities/item.entity';
 import { Repository } from 'typeorm';
@@ -6,13 +6,15 @@ import { Cron } from '@nestjs/schedule';
 import { ClientProxyFactory, Transport, ClientProxy } from '@nestjs/microservices';
 
 @Injectable()
-export class ItemService {
+export class ItemService implements OnModuleInit, OnModuleDestroy{
   private client: ClientProxy;
 
   constructor(
     @InjectRepository(Item)
-    private itemRepository: Repository<Item>,
-  ) {
+    private readonly itemRepository: Repository<Item>,
+  ) {}
+
+  onModuleInit() {
     this.client = ClientProxyFactory.create({
       transport: Transport.RMQ,
       options: {
@@ -23,6 +25,12 @@ export class ItemService {
         },
       },
     });
+  }
+
+  onModuleDestroy() {
+    if (this.client) {
+      this.client.close(); 
+    }
   }
 
   findAll(): Promise<Item[]> {
